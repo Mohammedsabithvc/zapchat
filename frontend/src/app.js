@@ -1,4 +1,4 @@
-import { apiFetch, uploadFile, getToken } from './main.js';
+import { apiFetch, uploadFile, getToken, getBackend } from './main.js';
 import { io } from 'socket.io-client';
 
 const COLORS=['#0057FF','#00A86B','#D93025','#7B61FF','#FF6B00','#00899E','#C2185B'];
@@ -206,7 +206,7 @@ export function renderApp(currentUser,onLogout){
   }
 
   function initSocket(){
-    const BACKEND_URL=import.meta.env.VITE_API_URL||""; socket=io(BACKEND_URL,{auth:{token:getToken()}});
+    socket=io(getBackend(),{auth:{token:getToken()}});
     socket.on('message:new',msg=>{
       if(msg.conversationId===activeConvId){messages.push(msg);renderMsgs();socket.emit('message:read',{conversationId:activeConvId});}
       updateConvLast(msg.conversationId,msg);
