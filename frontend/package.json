@@ -1,0 +1,17 @@
+{
+  "name": "zapchat-frontend",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite --port 5173",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tabler/icons-webfont": "^3.44.0",
+    "socket.io-client": "^4.6.1"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
