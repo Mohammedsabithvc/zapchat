@@ -7,17 +7,16 @@ const helmet = require('helmet');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const { v4: uuidv4 } = require('uuid');
+const auth = require('./middleware/auth');
+const { initSchema } = require('./db');
 
+// Cloudinary config
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-const path = require('path');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
-const auth = require('./middleware/auth');
-const { initSchema } = require('./db');
 
 const app = express();
 const server = http.createServer(app);
@@ -26,21 +25,27 @@ const io = new Server(server, {
   maxHttpBufferSize: 1e8
 });
 
-
-
-app.set("trust proxy", 1);
+app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api', require('./routes/messages'));
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
-  filename: (req, file, cb) => { const ext = path.extname(file.originalname)||(file.mimetype==="image/png"?".png":file.mimetype==="image/jpeg"?".jpg":file.mimetype==="video/webm"?".webm":file.mimetype==="video/mp4"?".mp4":file.mimetype==="audio/webm"?".webm":""); cb(null, uuidv4()+ext); }
+// Cloudinary storage
+const storage = new CloudinaryStorage({
+  cloudinary,
+  params: async (req, file) => {
+    const isVideo = file.mimetype.startsWith('video/');
+    const isAudio = file.mimetype.startsWith('audio/');
+    return {
+      folder: 'zapchat',
+      resource_type: isVideo || isAudio ? 'video' : 'image',
+      public_id: uuidv4(),
+    };
+  },
 });
 const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 } });
 
