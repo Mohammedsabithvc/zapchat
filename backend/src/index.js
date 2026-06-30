@@ -5,6 +5,14 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
 const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
@@ -14,18 +22,18 @@ const { initSchema } = require('./db');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: { origin: true, credentials: true, methods: ['GET', 'POST'] },
   maxHttpBufferSize: 1e8
 });
 
-const UPLOADS_DIR = path.join(__dirname, '../uploads');
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
+
+app.set("trust proxy", 1);
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: '*' }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use('/uploads', express.static(UPLOADS_DIR));
+
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api', require('./routes/messages'));
@@ -41,7 +49,7 @@ app.post('/api/upload', auth, upload.single('file'), (req, res) => {
   const type = req.file.mimetype.startsWith('image/') ? 'image'
     : req.file.mimetype.startsWith('video/') ? 'video'
     : req.file.mimetype.startsWith('audio/') ? 'audio' : 'file';
-  res.json({ url: `/uploads/${req.file.filename}`, type, originalName: req.file.originalname, size: req.file.size });
+  res.json({ url: req.file.path, type, originalName: req.file.originalname, size: req.file.size });
 });
 
 app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
