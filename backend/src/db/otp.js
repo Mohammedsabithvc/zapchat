@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 const { query, queryOne } = require('./index');
 
@@ -8,9 +8,7 @@ function generateOTP() {
 }
 
 async function saveOTP(contact, otp, type) {
-  // Delete any existing OTPs for this contact
   await query('DELETE FROM otps WHERE contact = $1', [contact]);
-  // Hash the OTP before storing
   const hash = await bcrypt.hash(otp, 10);
   await query(
     'INSERT INTO otps (contact, otp_hash, type) VALUES ($1, $2, $3)',
@@ -26,16 +24,24 @@ async function verifyOTP(contact, otp) {
   if (!record) return { valid: false, reason: 'OTP expired or not found. Request a new one.' };
   const match = await bcrypt.compare(otp, record.otp_hash);
   if (!match) return { valid: false, reason: 'Incorrect code. Please try again.' };
-  // Mark as used
   await query('UPDATE otps SET used = TRUE WHERE id = $1', [record.id]);
   return { valid: true };
 }
 
 async function sendEmailOTP(email, otp) {
   try {
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    await resend.emails.send({
-      from: 'ZapChat <onboarding@resend.dev>',
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"ZapChat" <${process.env.SMTP_FROM}>`,
       to: email,
       subject: `${otp} is your ZapChat verification code`,
       html: `
@@ -51,13 +57,13 @@ async function sendEmailOTP(email, otp) {
             <div style="font-size:48px;font-weight:800;letter-spacing:12px;color:#00A884;font-variant-numeric:tabular-nums;">${otp}</div>
           </div>
           <p style="font-size:13px;color:#999;line-height:1.6;">
-            If you didn't request this code, you can safely ignore this email. 
-            Someone may have entered your email address by mistake.
+            If you didn't request this code, you can safely ignore this email.
           </p>
           <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
           <p style="font-size:12px;color:#bbb;">ZapChat — Secure messaging for everyone.</p>
         </div>`
     });
+
     console.log(`✅ Email OTP sent to ${email}`);
     return true;
   } catch (err) {
