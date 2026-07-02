@@ -268,7 +268,7 @@ export function renderApp(currentUser,onLogout){
       let prev=lm?(lm.deleted?'This message was deleted':(typeMap[lm.type]||lm.content)):'Start chatting';
       if(lm&&lm.senderId===currentUser._id&&!lm.deleted)prev='You: '+prev;
       const unread=c.unreadCount||0;
-      return `<div class="ci${c._id===activeConvId?' active':''}" data-cid="${c._id}">
+      return `<div class="ci${(c.id||c._id)===activeConvId?' active':''}" data-cid="${c.id||c._id}">
         <div class="av" style="background:${bg};width:48px;height:48px;">${init}<div class="sdot ${online?'on':'off'}"></div></div>
         <div class="ci-info">
           <div class="ci-top"><div class="ci-name">${u?.displayName||u?.username||'Unknown'}</div><div class="ci-time${unread?' unread-time':''}">${lm?fmtTime(lm.createdAt):''}</div></div>
@@ -285,7 +285,7 @@ export function renderApp(currentUser,onLogout){
   }
 
   async function selectConv(cid){
-    activeConvId=cid;const c=conversations.find(x=>x._id===cid);if(!c)return;
+    activeConvId=cid;const c=conversations.find(x=>(x.id||x._id)===cid);if(!c)return;
     c.unreadCount=0;socket.emit('join:conversation',cid);
     document.querySelectorAll('.ci').forEach(el=>el.classList.toggle('active',el.dataset.cid===cid));renderChatPane(c.otherUser);showChat();
     try{messages=await apiFetch('GET',`/conversations/${cid}/messages`);renderMsgs();socket.emit('message:read',{conversationId:cid});}catch{}
@@ -488,8 +488,7 @@ export function renderApp(currentUser,onLogout){
 
   function renderMsg(msg){
     const sent=msg.senderId===currentUser._id;
-    const conv=conversations.find(c=>c._id===activeConvId);
-    const other=conv?.otherUser;
+    const conv=conversations.find(c=>(c.id||c._id)===activeConvId);    const other=conv?.otherUser;
     const bg=other?.avatarColor||colorFor(other?.username);
     const init=other?.avatar||other?.username?.slice(0,2).toUpperCase()||'?';
     const time=fmtTime(msg.createdAt);
