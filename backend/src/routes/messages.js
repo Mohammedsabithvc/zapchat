@@ -102,7 +102,7 @@ router.get('/conversations/list', auth, async (req, res) => {
       };
     }));
 
-    res.json(enriched);
+    res.json(enriched.map(x=>({...x,_id:x.id})));
   } catch (err) {
     console.error('conversations error:', err);
     res.status(500).json({ error: 'Failed to load conversations' });
